@@ -1,0 +1,7 @@
+output
+*.rpm
+.git
+.gitignore
+node_modules
+dist
+*.md

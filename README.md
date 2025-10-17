@@ -25,27 +25,27 @@ If you want to skip the build process, you can download a prebuilt RPM from this
 - **Internet**: Active connection for downloading dependencies and source code
 - **Disk Space**: ~1GB free space for build process
 
-## � Quick Start
+## Quick start
 
-### One Command Installation
+### Preferred: Dockerized build (recommended)
+
+Use the included helper to build the RPM inside a Fedora container. This keeps build dependencies out of your host system and makes the process reproducible.
+
+`docker-build.sh` will automatically prefer `podman` if it is installed; otherwise it falls back to `docker`.
 
 ```bash
-./stremio-install.sh
+./docker-build.sh
 ```
 
-That's it! This single command will:
+When the container finishes, the produced RPM (if successfully created) will be available under `./output/rpms`.
 
-1. **Install multimedia codecs** (RPM Fusion, FFmpeg, MPV)
-2. **Install build dependencies** (Qt5, gcc, etc.)
-3. **Download Stremio source code**
-4. **Clean previous installations**
-5. **Compile Stremio**
-6. **Create RPM package**
-7. **Clean up temporary files**
+Note: The helper is configured to avoid creating build artifacts in the repository tree. It only mounts `./output` from the host and performs the build inside the container's temporary filesystem. After running `./docker-build.sh` you should only see the `output/rpms` directory appear (unless you previously had other files there).
 
-### Install the Generated RPM
+If you still need the legacy host-based installer, those scripts have been archived in `scripts/legacy/`.
 
-After the build completes:
+### Install the Generated RPM (host)
+
+After the build completes (either via Docker or manual host build):
 
 ```bash
 sudo dnf install ./stremio-custom-1.0.0-1.fc42.x86_64.rpm
@@ -85,11 +85,17 @@ Or find it in your application menu.
 
 ```
 StremioFedora/
-├── stremio-install.sh                   # Main orchestrator (run this!)
-├── stremio-install-codecs.sh            # Codec installer (called automatically)
-├── stremio-previous-installation.sh     # Clean previous installations
-├── stremio-cleanup-build.sh             # Post-build cleanup
+├── scripts/legacy/                       # Archived host-based scripts (moved from repo root)
+│   ├── stremio-install.sh                # Legacy host install (archived)
+│   └── stremio-cleanup-build.sh          # Legacy cleanup (archived)
+├── stremio-install-codecs.sh            # Codec installer (called automatically by legacy script)
 ├── generate-spec.sh                     # Generate RPM spec file
+├── Dockerfile                           # Image to build Stremio and RPM inside container
+├── docker-build.sh                      # Host helper: build image and run container
+├── build-in-docker.sh                   # Runs the build steps inside the container
+├── .dockerignore                        # Ignore files for docker build context
+├── output/                              # Build output (populated after container run)
+│   └── rpms/
 ├── stremio-custom-VERSION.rpm           # Generated RPM (after build)
 └── README.md                            # This file
 ```
@@ -247,7 +253,24 @@ sudo dnf remove rpmfusion-nonfree-release
 ./stremio-cleanup-build.sh
 ```
 
-## 📄 License
+## � Dockerized build (build RPM inside a container)
+
+If you prefer to build the RPM inside a Fedora container (recommended to avoid polluting the host with build deps), use the included Docker helpers.
+
+1. Build the builder image and run the build (from the repo root):
+
+```bash
+./docker-build.sh
+```
+
+2. The produced RPM (if successfully built) will be available under `./output/rpms` in the repository directory.
+
+Notes:
+
+- The container image installs build dependencies inside the image. The build runs non-interactively and attempts to place the installed files into a fake root so `rpmbuild` can package them.
+- Building large components (Qt/WebEngine) may take time and require sufficient disk space.
+
+## �📄 License
 
 This build system is provided as-is for building Stremio on Fedora. Stremio itself is subject to its own license terms.
 
