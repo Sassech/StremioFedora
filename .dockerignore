@@ -1,0 +1,14 @@
+output
+*.rpm
+.git
+.github
+*.md
+*.log
+*.tmp
+.env
+.env.*
+scripts/legacy
+node_modules
+dist
+.DS_Store
+Thumbs.db
