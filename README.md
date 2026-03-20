@@ -19,7 +19,7 @@ Get the latest release from [Releases](https://github.com/sassech/StremioFedora/
 ./docker-build.sh
 ```
 
-RPM output: `./output/stremio-custom-*.rpm`
+RPM output: `./output/stremio-*.rpm`
 
 ## Dependencies (on target system)
 
@@ -30,7 +30,7 @@ sudo dnf install ffmpeg mpv gstreamer1-vaapi libva-utils  # codecs + VA-API
 ## Uninstall
 
 ```bash
-sudo dnf remove stremio-custom
+sudo dnf remove stremio
 ```
 
 ## Build Info

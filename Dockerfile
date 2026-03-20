@@ -17,14 +17,17 @@ RUN --mount=type=cache,target=/var/cache/dnf \
     rpm-build rpmdevtools curl \
     && dnf clean all
 
-RUN groupadd -g 1001 builder && \
-    useradd -u 1001 -g builder -s /bin/bash -d /home/builder -m builder && \
+# Create builder user with host uid/gid (passed at build time)
+ARG HOST_UID=1000
+ARG HOST_GID=1000
+RUN groupadd -g ${HOST_GID} builder && \
+    useradd -u ${HOST_UID} -g builder -s /bin/bash -d /home/builder -m builder && \
     mkdir -p /workspace && chown -R builder:builder /workspace
 
 COPY --chown=builder:builder . /workspace
 RUN chmod +x /workspace/*.sh 2>/dev/null || true
 
-ENV RPM_NAME=stremio-custom
+ENV RPM_NAME=stremio
 ENV VERSION=4.4.107
 
 USER builder

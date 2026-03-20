@@ -78,11 +78,33 @@ for file in *.png *.svg; do
     fi
 done
 
+echo "Verifying streaming server..."
+mkdir -p ~/.stremio-server
+cd "$TMP_BUILD/opt-stremio"
+node server.js > /tmp/server_test.log 2>&1 &
+SERVER_PID=$!
+sleep 5
+if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+    echo "Error: streaming server failed to start"
+    cat /tmp/server_test.log
+    exit 1
+fi
+if ! grep -q "EngineFS server started" /tmp/server_test.log; then
+    echo "Error: streaming server did not report ready"
+    cat /tmp/server_test.log
+    kill "$SERVER_PID" 2>/dev/null || true
+    exit 1
+fi
+echo "Streaming server verified successfully"
+kill "$SERVER_PID" 2>/dev/null || true
+wait "$SERVER_PID" 2>/dev/null || true
+cd "$SCRIPT_DIR"
+
 cd "$TMP_BUILD"
 
 # Generate spec and build RPM in tmp
 RPM_TOP_DIR="$TMP_BUILD/rpmbuild"
-RPM_NAME="${RPM_NAME:-stremio-custom}"
+RPM_NAME="stremio"
 VERSION="${VERSION:-4.4.107}"
 
 mkdir -p "$RPM_TOP_DIR"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}

@@ -4,7 +4,7 @@
 # Check if variables are passed
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
     echo "Usage: $0 <RPM_NAME> <VERSION> <OUTPUT_FILE> <INSTALL_DIR>"
-    echo "Example: $0 stremio-custom 1.0.0 /path/to/stremio-custom.spec /tmp/opt-stremio"
+    echo "Example: $0 stremio 1.0.0 /path/to/stremio.spec /tmp/opt-stremio"
     exit 1
 fi
 
@@ -20,10 +20,10 @@ BUILD_DATE=$(date '+%a %b %d %Y')
 
 # Generate spec file
 cat > "$OUTPUT_FILE" <<EOF
-Name:           ${RPM_NAME}
+Name:           stremio
 Version:        ${VERSION}
 Release:        1%{?dist}
-Summary:        Stremio media player custom build
+Summary:        Stremio media player
 License:        GPLv2+
 URL:            https://github.com/Stremio/stremio-shell
 BuildArch:      x86_64
@@ -37,6 +37,7 @@ Requires:       qt5-qtdeclarative
 Requires:       qt5-qtgraphicaleffects
 Requires:       mpv-libs
 Requires:       openssl-libs
+Requires:       nodejs >= 18
 
 %description
 Stremio is a modern media center that gives you the freedom to watch
@@ -75,6 +76,8 @@ DESKTOP
 %{_datadir}/applications/smartcode-stremio.desktop
 
 %post
+# Create symlink to node from system PATH (Stremio shell looks for /opt/stremio/node)
+ln -sf /usr/bin/node /opt/stremio/node 2>/dev/null || true
 # Create symlink in /usr/bin for easy access
 ln -sf /opt/stremio/stremio /usr/bin/stremio 2>/dev/null || true
 # Update desktop database

@@ -5,9 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE_NAME="${IMAGE_NAME:-stremio-builder:fedora}"
 LOG_FILE="$SCRIPT_DIR/docker-build.log"
 
-# Clear previous log
-> "$LOG_FILE"
-
+# Detect container tool
 CMD_TOOL=""
 if command -v podman &> /dev/null; then
 	CMD_TOOL=podman
@@ -18,15 +16,28 @@ else
 	exit 1
 fi
 
-echo "Using container tool: $CMD_TOOL"
-echo "Building Docker image..."
+# Get host uid/gid for matching container user
+HOST_UID=$(id -u)
+HOST_GID=$(id -g)
 
-# Support optional build args (pass-through)
-BUILD_ARGS=()
+echo "Using container tool: $CMD_TOOL"
+echo "Host uid=$HOST_UID gid=$HOST_GID"
+
+# Clear previous log
+> "$LOG_FILE"
+
+# Build args with uid/gid
+BUILD_ARGS=(
+	--build-arg "HOST_UID=$HOST_UID"
+	--build-arg "HOST_GID=$HOST_GID"
+)
+
+# Pass additional build args if provided
 if [ "$#" -gt 0 ]; then
-	BUILD_ARGS=("$@")
+	BUILD_ARGS+=("$@")
 fi
 
+echo "Building Docker image..."
 if ! "$CMD_TOOL" build -t "$IMAGE_NAME" "$SCRIPT_DIR" "${BUILD_ARGS[@]}" >> "$LOG_FILE" 2>&1; then
 	echo "Error building Docker image. Check $LOG_FILE for details."
 	tail -n 20 "$LOG_FILE"
@@ -36,13 +47,20 @@ fi
 echo "Docker image built successfully"
 echo "Running build inside container..."
 
-# Use :Z for local builds (Fedora/SELinux), but skip it in GitHub Actions
+# Mount options: :Z for SELinux (Fedora), skip in GitHub Actions
 MOUNT_OPTION=":Z"
-if [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
-	MOUNT_OPTION=""
+RUN_ARGS=(--rm -v "$SCRIPT_DIR:/workspace${MOUNT_OPTION}")
+
+# podman: keep host user namespace so output files are owned by host user
+if [ "$CMD_TOOL" = "podman" ]; then
+	RUN_ARGS+=(--userns=keep-id)
 fi
 
-if ! "$CMD_TOOL" run --rm -v "$SCRIPT_DIR":/workspace${MOUNT_OPTION} "$IMAGE_NAME"; then
+if [ "${GITHUB_ACTIONS:-false}" = "true" ]; then
+	RUN_ARGS=(--rm -v "$SCRIPT_DIR:/workspace")
+fi
+
+if ! "$CMD_TOOL" run "${RUN_ARGS[@]}" "$IMAGE_NAME"; then
 	echo "Build failed inside container"
 	exit 1
 fi
