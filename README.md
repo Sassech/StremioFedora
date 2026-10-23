@@ -2,6 +2,10 @@
 
 Automated build system to compile Stremio from source and create an RPM package.
 
+Builds [stremio-linux-shell](https://github.com/Stremio/stremio-linux-shell), the
+current Linux client (Rust, GTK4, libadwaita, WebKitGTK 6, libmpv). The legacy
+Qt5 `stremio-shell` is no longer used.
+
 ## Download Prebuilt RPM
 
 Get the latest release from [Releases](https://github.com/sassech/StremioFedora/releases).
@@ -10,8 +14,8 @@ Get the latest release from [Releases](https://github.com/sassech/StremioFedora/
 
 ### Requirements
 - Docker or Podman
-- Fedora 30+ / RHEL 8+
-- ~2GB disk space
+- Target: Fedora 44+ (the build image is `fedora:44`; the RPM links against its GTK4/WebKitGTK)
+- A few GB of disk space for the Rust toolchain and build cache
 
 ### Quick Start
 
@@ -19,9 +23,15 @@ Get the latest release from [Releases](https://github.com/sassech/StremioFedora/
 ./docker-build.sh
 ```
 
-RPM output: `./output/stremio-custom-*.rpm`
+RPM output: `./output/stremio-*.rpm`
+
+The latest upstream release tag is built by default. `build-in-docker.sh` also honors
+`STREMIO_REF` (tag or branch) when it is set inside the container.
 
 ## Dependencies (on target system)
+
+Runtime libraries (GTK4, libadwaita, WebKitGTK 6, mpv-libs, libepoxy, Node.js) are
+pulled in by the RPM. No Qt is required. For extra codecs and hardware decoding:
 
 ```bash
 sudo dnf install ffmpeg mpv gstreamer1-vaapi libva-utils  # codecs + VA-API
@@ -30,14 +40,11 @@ sudo dnf install ffmpeg mpv gstreamer1-vaapi libva-utils  # codecs + VA-API
 ## Uninstall
 
 ```bash
-sudo dnf remove stremio-custom
+sudo dnf remove stremio
 ```
 
 ## Build Info
-- **Build Time**: ~10-15 min (first run), ~5-8 min (cached)
-- **RPM Size**: ~1.1MB
-- **Source**: [github.com/Stremio/stremio-shell](https://github.com/Stremio/stremio-shell)
+- **Build Time**: approximate; first run compiles all Rust crates, later runs reuse the dnf cache
+- **Source**: [github.com/Stremio/stremio-linux-shell](https://github.com/Stremio/stremio-linux-shell)
 
 ---
-
-Build system by [sassech](https://github.com/sassech). Provided as-is. Stremio is subject to its own license.

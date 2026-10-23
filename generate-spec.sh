@@ -1,11 +1,12 @@
 #!/bin/bash
 # Generación de archivo spec para Stremio en Fedora
-set -e  # Salir en caso de error
+set -euo pipefail
 
 # Verifica si se proporcionaron los argumentos necesarios
-if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
+if [ -z "${1:-}" ] || [ -z "${2:-}" ] || [ -z "${3:-}" ] || [ -z "${4:-}" ]; then
     echo "Usage: $0 <RPM_NAME> <VERSION> <OUTPUT_FILE> <INSTALL_DIR> [ARCH]"
-    echo "Example: $0 stremio 1.0.0 /path/to/stremio.spec /tmp/opt-stremio x86_64"
+    echo "Example: $0 stremio 1.2.2 /path/to/stremio.spec /tmp/build/fakeroot x86_64"
+    echo "INSTALL_DIR is a fakeroot tree laid out like / (usr/bin, usr/libexec, usr/share)"
     exit 1
 fi
 
@@ -15,32 +16,36 @@ OUTPUT_FILE="$3"
 INSTALL_DIR="$4"
 ARCH="${5:-$(uname -m)}"
 
-BUILD_DATE=$(date '+%a %b %d %Y')
+BUILD_DATE=$(LC_ALL=C date '+%a %b %d %Y')
 
-# Genera archivo spec
 cat > "$OUTPUT_FILE" <<EOF
-Name:           stremio
+# Binary is prebuilt outside rpmbuild; no debuginfo subpackage
+%global debug_package %{nil}
+
+Name:           ${RPM_NAME}
+# Epoch 1: stremio-linux-shell restarts at 1.x, below the legacy stremio-shell 4.4.x
+# packages, so the epoch is required for dnf to treat this build as an upgrade.
+Epoch:          1
 Version:        ${VERSION}
 Release:        1%{?dist}
-Summary:        Stremio media player
-License:        GPLv2+
-URL:            https://github.com/Stremio/stremio-shell
+Summary:        Stremio media center (GTK4 / WebKitGTK / libmpv shell)
+License:        GPL-3.0-only
+URL:            https://github.com/Stremio/stremio-linux-shell
 BuildArch:      ${ARCH}
 
-# Runtime dependencies
-Requires:       qt5-qtbase
-Requires:       qt5-qtwebengine
-Requires:       qt5-qtquickcontrols
-Requires:       qt5-qtquickcontrols2
-Requires:       qt5-qtdeclarative
-Requires:       qt5-qtgraphicaleffects
+# Shared libraries are picked up by rpm autodeps; libepoxy is dlopen()ed at
+# runtime and node is spawned from PATH, so those are listed explicitly.
+Requires:       gtk4
+Requires:       libadwaita
+Requires:       webkitgtk6.0
 Requires:       mpv-libs
-Requires:       openssl-libs
-Requires:       nodejs >= 18
+Requires:       libepoxy
+Requires:       /usr/bin/node
 
 %description
 Stremio is a modern media center that gives you the freedom to watch
-everything you want. Custom build for Fedora.
+everything you want. This package is built from stremio-linux-shell,
+the GTK4, libadwaita, WebKitGTK and libmpv based Linux client.
 
 %prep
 # No prep needed
@@ -49,54 +54,25 @@ everything you want. Custom build for Fedora.
 # Already built
 
 %install
-# Copy files from install directory to buildroot
-mkdir -p %{buildroot}/opt/stremio
-cp -r ${INSTALL_DIR}/* %{buildroot}/opt/stremio/
-
-# Create desktop file
-mkdir -p %{buildroot}/usr/share/applications
-cat > %{buildroot}/usr/share/applications/smartcode-stremio.desktop <<DESKTOP
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Stremio
-Comment=Watch movies, series, TV channels and video channels
-Exec=/opt/stremio/stremio %U
-Icon=/opt/stremio/icons/smartcode-stremio_128.png
-Categories=AudioVideo;Video;Player;TV;
-MimeType=x-scheme-handler/stremio;
-Terminal=false
-StartupNotify=true
-DESKTOP
+mkdir -p %{buildroot}
+cp -a ${INSTALL_DIR}/. %{buildroot}/
 
 %files
-%dir /opt/stremio
-/opt/stremio/*
-%{_datadir}/applications/smartcode-stremio.desktop
-
-%post
-# Create symlink to node from system PATH (Stremio shell looks for /opt/stremio/node)
-ln -sf /usr/bin/node /opt/stremio/node 2>/dev/null || true
-# Create symlink in /usr/bin for easy access
-ln -sf /opt/stremio/stremio /usr/bin/stremio 2>/dev/null || true
-# Update desktop database
-update-desktop-database /usr/share/applications 2>/dev/null || true
-
-%postun
-# Remove symlink
-rm -f /usr/bin/stremio 2>/dev/null || true
-# Update desktop database
-update-desktop-database /usr/share/applications 2>/dev/null || true
+%license %{_datadir}/licenses/stremio/LICENSE
+%{_bindir}/stremio
+%dir %{_libexecdir}/stremio
+%{_libexecdir}/stremio/stremio
+%{_libexecdir}/stremio/server.js
+%{_datadir}/applications/com.stremio.Stremio.desktop
+%{_datadir}/dbus-1/services/com.stremio.Stremio.service
+%{_datadir}/icons/hicolor/scalable/apps/com.stremio.Stremio.svg
+%{_datadir}/glib-2.0/schemas/com.stremio.Stremio.gschema.xml
+%{_datadir}/metainfo/com.stremio.Stremio.metainfo.xml
+%{_mandir}/man1/stremio.1*
 
 %changelog
-- Initial RPM package
-- Custom build for Fedora from stremio-shell source
+* ${BUILD_DATE} builder - ${VERSION}-1
+- Build from stremio-linux-shell ${VERSION} for Fedora
 EOF
 
-if [ $? -eq 0 ]; then
-    echo "✓ Spec file generated: $OUTPUT_FILE"
-    exit 0
-else
-    echo "✗ Failed to generate spec file"
-    exit 1
-fi
+echo "Spec file generated: $OUTPUT_FILE"
