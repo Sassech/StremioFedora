@@ -13,6 +13,7 @@ RUN --mount=type=cache,target=/var/cache/dnf \
     dnf -y upgrade-minimal && \
     dnf clean all && \
     dnf install -y --setopt=install_weak_deps=False \
+    --setopt=timeout=60 --setopt=retries=10 --setopt=minrate=10k \
     git curl rpm-build gcc pkgconf-pkg-config \
     rust cargo \
     gtk4-devel libadwaita-devel webkitgtk6.0-devel mpv-devel libepoxy-devel \
