@@ -1,50 +1,37 @@
 # Stremio RPM Builder for Fedora
 
-Automated build system to compile Stremio from source and create an RPM package.
-
-Builds [stremio-linux-shell](https://github.com/Stremio/stremio-linux-shell), the
-current Linux client (Rust, GTK4, libadwaita, WebKitGTK 6, libmpv). The legacy
-Qt5 `stremio-shell` is no longer used.
-
-## Download Prebuilt RPM
-
-Get the latest release from [Releases](https://github.com/sassech/StremioFedora/releases).
-
-## Build from Source
-
-### Requirements
-- Docker or Podman
-- Target: Fedora 44+ (the build image is `fedora:44`; the RPM links against its GTK4/WebKitGTK)
-- A few GB of disk space for the Rust toolchain and build cache
-
-### Quick Start
+> **Stremio is now available on COPR.** There is no need to download the RPM
+> from Releases anymore: the repository rebuilds automatically on every new
+> upstream release.
 
 ```bash
-./docker-build.sh
+sudo dnf remove stremio                      # the package from this repo, if installed
+sudo dnf copr enable sassech/packages
+sudo dnf install stremio-linux-shell         # latest release
+# or
+sudo dnf install stremio-linux-shell-git     # latest commit
 ```
 
-RPM output: `./output/stremio-*.rpm`
+Available for Fedora 44, 45 and rawhide (x86_64 and aarch64). See
+[sassech/packages](https://copr.fedorainfracloud.org/coprs/sassech/packages/) and
+[Sassech/copr-packages](https://github.com/Sassech/copr-packages).
 
-The latest upstream release tag is built by default. `build-in-docker.sh` also honors
-`STREMIO_REF` (tag or branch) when it is set inside the container.
+The COPR package is named `stremio-linux-shell` and conflicts with the `stremio`
+package built here, so remove the old one first. The command is still `stremio`.
 
-## Dependencies (on target system)
-
-Runtime libraries (GTK4, libadwaita, WebKitGTK 6, mpv-libs, libepoxy, Node.js) are
-pulled in by the RPM. No Qt is required. For extra codecs and hardware decoding:
+For extra codecs and hardware decoding:
 
 ```bash
-sudo dnf install ffmpeg mpv gstreamer1-vaapi libva-utils  # codecs + VA-API
+sudo dnf install ffmpeg mpv gstreamer1-vaapi libva-utils
 ```
 
-## Uninstall
+## Build locally
+
+This builder still works if you prefer a local RPM:
 
 ```bash
-sudo dnf remove stremio
+./docker-build.sh            # RPM in ./output/stremio-*.rpm
 ```
 
-## Build Info
-- **Build Time**: approximate; first run compiles all Rust crates, later runs reuse the dnf cache
-- **Source**: [github.com/Stremio/stremio-linux-shell](https://github.com/Stremio/stremio-linux-shell)
-
----
+It builds [stremio-linux-shell](https://github.com/Stremio/stremio-linux-shell)
+in a `fedora:44` container (Docker or Podman).
